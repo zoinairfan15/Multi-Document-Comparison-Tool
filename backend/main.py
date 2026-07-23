@@ -17,7 +17,7 @@ app = FastAPI()
 # Allow the React frontend (running on a different port) to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # default Vite dev server port
+    allow_origins=["https://multi-document-comparison-tool.vercel.app/"],  # default Vite dev server port
     allow_methods=["*"],
     allow_headers=["*"],
 )
