@@ -15,13 +15,13 @@ from llm_client import compare_papers, check_faithfulness
 app = FastAPI()
 
 # Allow the React frontend (running on a different port) to call this API
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://multi-document-comparison-tool.vercel.app/"],  # default Vite dev server port
+    allow_origins=["https://multi-document-comparison-tool.vercel.app"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # Persistent store of processed papers: {paper_id: title}
 PAPERS_STORE_FILE = "processed_papers.json"
 
