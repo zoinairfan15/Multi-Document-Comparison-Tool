@@ -1,21 +1,43 @@
 import chromadb
+import requests
+import os
+import time
 import gc
-from sentence_transformers import SentenceTransformer
+from sklearn.decomposition import PCA
 
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
-model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection("papers")
 
+
+def get_embeddings(texts: list, retries: int = 3):
+    """Call Hugging Face's hosted embedding API instead of running the model locally."""
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+    for attempt in range(retries):
+        response = requests.post(
+            HF_API_URL,
+            headers=headers,
+            json={"inputs": texts, "options": {"wait_for_model": True}},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            return response.json()
+        time.sleep(2)
+    raise Exception(f"HF embedding API failed: {response.status_code} {response.text}")
+
+
 def add_chunks(chunks: list, batch_size: int = 8):
-    """Embed and store chunks with metadata, in small batches to limit peak memory."""
+    """Embed (via hosted API) and store chunks with metadata, in small batches."""
     texts = [c["text"] for c in chunks]
     all_embeddings = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
-        batch_embeddings = model.encode(batch).tolist()
+        batch_embeddings = get_embeddings(batch)
         all_embeddings.extend(batch_embeddings)
     embeddings = all_embeddings
+
     ids = [f"{c['paper_id']}_{i}" for i, c in enumerate(chunks)]
     metadatas = [{"paper_id": c["paper_id"], "paper_title": c["paper_title"]} for c in chunks]
 
@@ -27,9 +49,10 @@ def add_chunks(chunks: list, batch_size: int = 8):
     )
     gc.collect()
 
+
 def query_per_paper(query: str, paper_ids: list, k: int = 3):
     """Retrieve top-k chunks PER paper, along with similarity scores for evaluation."""
-    query_embedding = model.encode([query]).tolist()
+    query_embedding = get_embeddings([query])
     results = {}
     scores = {}
     for pid in paper_ids:
@@ -39,11 +62,10 @@ def query_per_paper(query: str, paper_ids: list, k: int = 3):
             where={"paper_id": pid}
         )
         results[pid] = res["documents"][0] if res["documents"] else []
-        # ChromaDB returns distances (lower = more similar); convert to a 0-1 relevance score
         distances = res["distances"][0] if res["distances"] else []
         scores[pid] = [round(1 - d, 3) for d in distances] if distances else []
     return results, scores
-from sklearn.decomposition import PCA
+
 
 def get_embedding_visualization(paper_ids: list):
     """Fetch all chunk embeddings for the given papers and reduce to 2D for plotting."""
