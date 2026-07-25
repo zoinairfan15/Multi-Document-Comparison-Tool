@@ -6,7 +6,7 @@ import gc
 from sklearn.decomposition import PCA
 
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
-HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
 
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection("papers")
