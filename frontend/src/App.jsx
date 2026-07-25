@@ -412,7 +412,10 @@ function EmbeddingPlot({ points, paperTitles }) {
 
   return (
     <div>
-      <svg width={width} height={height} style={{ background: '#171a21', borderRadius: 8 }}>
+      <svg
+  viewBox={`0 0 ${width} ${height}`}
+  style={{ background: '#171a21', borderRadius: 8, width: '100%', height: 'auto', maxWidth: width }}
+>
         {points.map((p, i) => (
           <circle
             key={i}

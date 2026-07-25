@@ -1,15 +1,21 @@
 import chromadb
+import gc
 from sentence_transformers import SentenceTransformer
 
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection("papers")
 
-def add_chunks(chunks: list):
-    """Embed and store chunks with metadata."""
+def add_chunks(chunks: list, batch_size: int = 8):
+    """Embed and store chunks with metadata, in small batches to limit peak memory."""
     texts = [c["text"] for c in chunks]
-    embeddings = model.encode(texts).tolist()
+    all_embeddings = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        batch_embeddings = model.encode(batch).tolist()
+        all_embeddings.extend(batch_embeddings)
+    embeddings = all_embeddings
     ids = [f"{c['paper_id']}_{i}" for i, c in enumerate(chunks)]
     metadatas = [{"paper_id": c["paper_id"], "paper_title": c["paper_title"]} for c in chunks]
 
@@ -19,6 +25,7 @@ def add_chunks(chunks: list):
         metadatas=metadatas,
         ids=ids
     )
+    gc.collect()
 
 def query_per_paper(query: str, paper_ids: list, k: int = 3):
     """Retrieve top-k chunks PER paper, along with similarity scores for evaluation."""
