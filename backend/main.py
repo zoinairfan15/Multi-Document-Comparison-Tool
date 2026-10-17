@@ -1,5 +1,6 @@
 import json
 from fastapi import FastAPI
+from vector_store import add_chunks, query_per_paper
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
@@ -10,7 +11,6 @@ import uuid
 from arxiv_fetcher import search_arxiv, download_paper
 from pdf_parser import extract_text
 from chunker import chunk_text
-from vector_store import add_chunks, query_per_paper, get_embedding_visualization
 from llm_client import compare_papers, check_faithfulness
 app = FastAPI()
 
@@ -18,7 +18,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://multi-document-comparison-tool.vercel.app"],
+    allow_origins=["http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,8 +52,7 @@ class CompareRequest(BaseModel):
     query: str
     paper_ids: list[str]
 
-class VisualizeRequest(BaseModel):
-    paper_ids: list[str]    
+   
 
 
 @app.get("/")
@@ -110,9 +109,6 @@ def compare(req: CompareRequest):
 
     return {
         "answer": answer,
-        "faithfulness": faithfulness,
-        "sources": retrieved,
-        "titles": titles,
         "metrics": {
             "retrieval_time_sec": retrieval_time,
             "generation_time_sec": generation_time,
@@ -121,11 +117,6 @@ def compare(req: CompareRequest):
             "chunks_retrieved": len(all_scores),
         }
     }
-
-@app.post("/visualize")
-def visualize(req: VisualizeRequest):
-    """Return 2D coordinates of chunk embeddings for the given papers, for plotting."""
-    return get_embedding_visualization(req.paper_ids)
 
 
 @app.post("/upload")

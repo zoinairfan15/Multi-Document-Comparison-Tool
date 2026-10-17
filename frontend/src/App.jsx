@@ -2,8 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_BASE = 'https://multi-document-comparison-tool.onrender.com';
-
+const API_BASE = "https://multi-document-comparison-tool.onrender.com"
 function renderFormatted(text) {
   const lines = text.split('\n').filter((l) => l.trim() !== '');
   return lines.map((line, i) => {
@@ -35,15 +34,11 @@ function App() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [compareQuery, setCompareQuery] = useState('');
   const [answer, setAnswer] = useState('');
-  const [faithfulness, setFaithfulness] = useState('');
-  const [loading, setLoading] = useState(false);
+ 
+ const [loading, setLoading] = useState(false);
   const [ingested, setIngested] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [metrics, setMetrics] = useState(null);
-  const [embeddingPoints, setEmbeddingPoints] = useState(null);
-  const [sources, setSources] = useState(null);
-const [sourceTitles, setSourceTitles] = useState({});
-const [activeSourcePaper, setActiveSourcePaper] = useState(null);
 
   const handleSearch = async () => {
     setLoading(true);
@@ -121,29 +116,22 @@ const [activeSourcePaper, setActiveSourcePaper] = useState(null);
     setLoading(false);
   };
 
-  const handleCompare = async () => {
-    setLoading(true);
-    setAnswer('');
-     setFaithfulness('');
-     setMetrics(null);
-     setSources(null);
-     setActiveSourcePaper(null);
-    try {
-      const res = await axios.post(`${API_BASE}/compare`, {
-        query: compareQuery,
-        paper_ids: selectedIds,
-      });
-     setAnswer(res.data.answer);
-     setFaithfulness(res.data.faithfulness);
-     setMetrics(res.data.metrics);
-     setSources(res.data.sources);
-     setSourceTitles(res.data.titles);
-     setActiveSourcePaper(null);
-    } catch (err) {
-      alert('Compare failed: ' + err.message);
-    }
-    setLoading(false);
-  };
+ const handleCompare = async () => {
+  setLoading(true);
+  setAnswer('');
+  setMetrics(null);
+  try {
+    const res = await axios.post(`${API_BASE}/compare`, {
+      query: compareQuery,
+      paper_ids: selectedIds,
+    });
+    setAnswer(res.data.answer);
+    setMetrics(res.data.metrics);
+  } catch (err) {
+    alert('Compare failed: ' + (err.response?.data?.detail || err.message));
+  }
+  setLoading(false);
+};
   const handleDownload = () => {
   if (!answer) return;
 
@@ -154,10 +142,6 @@ const [activeSourcePaper, setActiveSourcePaper] = useState(null);
   report += `**Papers compared:**\n`;
   selectedTitles.forEach((t) => (report += `- ${t}\n`));
   report += `\n---\n\n## Comparison\n\n${answer}\n\n`;
-
-  if (faithfulness) {
-    report += `---\n\n## Faithfulness Check\n\n${faithfulness}\n\n`;
-  }
 
   if (metrics) {
     report += `---\n\n## Evaluation Metrics\n\n`;
@@ -178,17 +162,6 @@ const [activeSourcePaper, setActiveSourcePaper] = useState(null);
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
-  const handleVisualize = async () => {
-  try {
-    const res = await axios.post(`${API_BASE}/visualize`, {
-      paper_ids: selectedIds,
-    });
-    setEmbeddingPoints(res.data.points);
-  } catch (err) {
-    alert('Visualization failed: ' + err.message);
-  }
-};
-
   return (
     <div className="page">
       <p className="eyebrow">Research Assistant</p>
@@ -291,9 +264,6 @@ const [activeSourcePaper, setActiveSourcePaper] = useState(null);
             <button className="btn" onClick={handleCompare} disabled={loading}>
               Compare
             </button>
-            <button className="btn" onClick={handleVisualize} style={{ marginLeft: 8, background: 'var(--surface-2)', color: 'var(--text)' }}>
-  Visualize Embeddings
-</button>
           </div>
         </div>
       )}
@@ -319,37 +289,6 @@ const [activeSourcePaper, setActiveSourcePaper] = useState(null);
     {renderFormatted(answer)}
   </div>
 )}
-      {sources && (
-  <div className="sources-toggle">
-    {Object.keys(sources).map((pid) => (
-      <button
-        key={pid}
-        className={`source-chip ${activeSourcePaper === pid ? 'active' : ''}`}
-        onClick={() => setActiveSourcePaper(activeSourcePaper === pid ? null : pid)}
-      >
-        📄 {sourceTitles[pid]?.slice(0, 30) || pid}
-      </button>
-    ))}
-  </div>
-)}
-
-{activeSourcePaper && sources && sources[activeSourcePaper] && (
-  <div className="source-panel">
-    <p className="metrics-label" style={{ margin: '0 0 10px' }}>
-      Retrieved chunks from: {sourceTitles[activeSourcePaper]}
-    </p>
-    {sources[activeSourcePaper].map((chunk, i) => (
-      <p key={i} className="source-chunk">{chunk.slice(0, 400)}...</p>
-    ))}
-  </div>
-)}
-
-      {faithfulness && (
-        <div className="faithfulness-card">
-          <p className="faithfulness-label">Faithfulness Check</p>
-          <p className="faithfulness-text">{faithfulness}</p>
-        </div>
-      )}
       {metrics && (
   <div className="metrics-card">
     <p className="metrics-label">Evaluation Metrics</p>
@@ -377,68 +316,6 @@ const [activeSourcePaper, setActiveSourcePaper] = useState(null);
     </div>
   </div>
 )}
-{embeddingPoints && (
-  <div className="result-card" style={{ marginTop: 16 }}>
-    <h4 className="result-heading">Chunk Embedding Space (PCA)</h4>
-    <EmbeddingPlot
-      points={embeddingPoints}
-      paperTitles={Object.fromEntries(papers.map((p) => [p.id, p.title]))}
-    />
-  </div>
-)}
-    </div>
-  );
-}
-const PAPER_COLORS = ['#c9a227', '#4f8f8a', '#b8544a', '#5a9d72', '#7a6fc4', '#c47a9e'];
-
-function EmbeddingPlot({ points, paperTitles }) {
-  if (!points || points.length === 0) return null;
-
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
-  const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const yMin = Math.min(...ys), yMax = Math.max(...ys);
-  const pad = 30;
-  const width = 600, height = 400;
-
-  const scaleX = (x) => pad + ((x - xMin) / (xMax - xMin || 1)) * (width - 2 * pad);
-  const scaleY = (y) => height - pad - ((y - yMin) / (yMax - yMin || 1)) * (height - 2 * pad);
-
-  const uniquePaperIds = [...new Set(points.map((p) => p.paper_id))];
-  const colorMap = {};
-  uniquePaperIds.forEach((pid, i) => {
-    colorMap[pid] = PAPER_COLORS[i % PAPER_COLORS.length];
-  });
-
-  return (
-    <div>
-      <svg
-  viewBox={`0 0 ${width} ${height}`}
-  style={{ background: '#171a21', borderRadius: 8, width: '100%', height: 'auto', maxWidth: width }}
->
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={scaleX(p.x)}
-            cy={scaleY(p.y)}
-            r={5}
-            fill={colorMap[p.paper_id]}
-            opacity={0.8}
-          >
-            <title>{p.preview}</title>
-          </circle>
-        ))}
-      </svg>
-      <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
-        {uniquePaperIds.map((pid) => (
-          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: colorMap[pid] }} />
-            <span style={{ fontSize: 12, color: '#8f94a3' }}>
-              {paperTitles[pid]?.slice(0, 40) || pid}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ from groq import Groq
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 def compare_papers(query: str, retrieved_chunks: dict, paper_titles: dict):
     """
@@ -35,7 +36,7 @@ For every claim, cite which paper it came from by title. If the context doesn't 
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
     )
@@ -64,7 +65,7 @@ Respond in this exact format:
 """
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
     )
