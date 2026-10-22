@@ -19,7 +19,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://multi-document-comparison-tool.vercel.app",
+        "multi-document-comparison-tool-obj8-ebon.vercel.app",
         "http://localhost:5173",
     ],
     allow_credentials=True,
