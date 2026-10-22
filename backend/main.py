@@ -18,7 +18,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://multi-document-comparison-tool.vercel.app","http://localhost:5173"],
+    allow_origins=[
+        "https://multi-document-comparison-tool.vercel.app",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -143,3 +147,13 @@ async def upload_and_ingest(files: List[UploadFile] = File(...)):
 
     save_processed_papers()
     return {"status": "ingested", "papers": ingested}
+from fastapi import HTTPException
+
+@app.post("/compare")
+def compare(req: CompareRequest):
+    try:
+        titles = {pid: processed_papers.get(pid, pid) for pid in req.paper_ids}
+        # ... all your existing code stays here, indented inside try ...
+        return {"answer": answer, "metrics": {...}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
